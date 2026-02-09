@@ -1,83 +1,92 @@
-// SCENE SETUP
+import { TEAMS } from "./data/teams.js";
+import { RATINGS } from "./data/ratings.js";
+import { Player } from "./systems/Player.js";
+import { Ball } from "./systems/Ball.js";
+
+// BASIC THREE.JS SETUP
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0b6623);
 
-// CAMERA
 const camera = new THREE.PerspectiveCamera(
-  75,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  1000
+  75, window.innerWidth / window.innerHeight, 0.1, 1000
 );
 
-// RENDERER
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer({ antialias:true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
 // LIGHTING
-const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(5, 10, 5);
-scene.add(light);
-scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+const sun = new THREE.DirectionalLight(0xffffff, 1);
+sun.position.set(10, 20, 10);
+scene.add(sun);
 
 // FIELD
-const fieldGeo = new THREE.PlaneGeometry(100, 50);
-const fieldMat = new THREE.MeshStandardMaterial({ color: 0x1e7f3b });
-const field = new THREE.Mesh(fieldGeo, fieldMat);
+const field = new THREE.Mesh(
+  new THREE.PlaneGeometry(100, 50),
+  new THREE.MeshStandardMaterial({ color: 0x1e7f3b })
+);
 field.rotation.x = -Math.PI / 2;
 scene.add(field);
 
-// PLAYER MODEL (QB)
-function createPlayer(color) {
-  const group = new THREE.Group();
-
-  const body = new THREE.Mesh(
-    new THREE.CapsuleGeometry(0.5, 1.2, 4, 8),
+// PLAYER MODEL CREATOR
+function createPlayerMesh(color) {
+  const mesh = new THREE.Mesh(
+    new THREE.CapsuleGeometry(0.5, 1.5, 4, 8),
     new THREE.MeshStandardMaterial({ color })
   );
-  body.position.y = 1.2;
-  group.add(body);
-
-  return group;
+  mesh.position.y = 1.5;
+  return mesh;
 }
 
-const qb = createPlayer(0x003594);
-qb.position.set(-30, 0, 0);
-scene.add(qb);
+// SELECT TEAM (FOR NOW HARD-CODED)
+const team = TEAMS[0];
 
-// CAMERA POSITION
-camera.position.set(-35, 15, 15);
-camera.lookAt(qb.position);
+// QB
+const qbMesh = createPlayerMesh(team.color);
+qbMesh.position.set(-30, 0, 0);
+scene.add(qbMesh);
 
-// CONTROLS
+const qb = new Player(qbMesh, RATINGS.QB);
+
+// BALL
+const ball = new Ball(scene, qbMesh);
+
+// CAMERA
+camera.position.set(-38, 15, 15);
+camera.lookAt(qbMesh.position);
+
+// INPUT
 const keys = {};
 window.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
 window.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
 
-// GAME LOOP
+// LOOP
 function animate() {
   requestAnimationFrame(animate);
 
-  // QB movement
-  if (keys["w"]) qb.position.z -= 0.3;
-  if (keys["s"]) qb.position.z += 0.3;
-  if (keys["a"]) qb.position.x -= 0.3;
-  if (keys["d"]) qb.position.x += 0.3;
+  let dx = 0, dz = 0;
+  if (keys["w"]) dz -= 1;
+  if (keys["s"]) dz += 1;
+  if (keys["a"]) dx -= 1;
+  if (keys["d"]) dx += 1;
 
-  // Camera follow
-  camera.position.x = qb.position.x - 5;
-  camera.position.z = qb.position.z + 12;
-  camera.lookAt(qb.position);
+  qb.move(dx, dz);
+  ball.update();
+
+  camera.position.x = qbMesh.position.x - 8;
+  camera.position.z = qbMesh.position.z + 15;
+  camera.lookAt(qbMesh.position);
 
   renderer.render(scene, camera);
 }
 
 animate();
 
-// RESIZE HANDLER
-window.addEventListener("resize", () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
+// RESIZE
+window.addEventListener("resize", ()=>{
+  camera.aspect = window.innerWidth/window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
+
